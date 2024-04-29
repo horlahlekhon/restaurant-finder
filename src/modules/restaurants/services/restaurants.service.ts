@@ -1,17 +1,27 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { RestaurantsRepository } from '../repositories/restaurantRepository';
-import { RestaurantsDtos, PatchRestaurantDto, RestaurantFilterDto } from "../dtos/restaurantsDtos";
+import {
+  RestaurantsDtos,
+  PatchRestaurantDto,
+  RestaurantFilterDto,
+} from '../dtos/restaurantsDtos';
 
 @Injectable()
 export class RestaurantsService {
   constructor(private readonly restaurantsRepository: RestaurantsRepository) {}
 
   async getAll(filter: RestaurantFilterDto) {
-    return this.restaurantsRepository.getAllRestaurants(filter);
+    const res = await this.restaurantsRepository.getAllRestaurants(filter);
+    console.log(res);
+    return res;
   }
 
   async create(body: RestaurantsDtos) {
-    return this.restaurantsRepository.create(body);
+    try {
+      return this.restaurantsRepository.create(body);
+    } catch (e) {
+      throw new HttpException('Restaurant already exist', HttpStatus.CONFLICT);
+    }
   }
 
   async get(id: string) {

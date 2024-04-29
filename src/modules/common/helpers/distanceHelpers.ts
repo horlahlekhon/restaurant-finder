@@ -1,3 +1,7 @@
+import { Geodesic } from 'geographiclib-geodesic';
+import { DMS } from 'geographiclib-dms';
+
+
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
 }
@@ -56,5 +60,25 @@ export function calculateMinMaxCoordinates(centreCoordinate, distanceMetres) {
     maxLatitude: maxLatDeg,
     minLongitude: minLonDeg,
     maxLongitude: maxLonDeg,
+  };
+}
+
+export function calculateMinMaxCoordinates2(center, distance) {
+  const geod = Geodesic.WGS84;
+  const { latitude, longitude } = center;
+
+  const distanceKm = distance / 1000;
+  // Calculate bounding points
+  const northPoint = geod.Direct(latitude, longitude, 0, distanceKm);
+  const southPoint = geod.Direct(latitude, longitude, 180, distanceKm);
+  const eastPoint = geod.Direct(latitude, longitude, 90, distanceKm);
+  const westPoint = geod.Direct(latitude, longitude, 270, distanceKm);
+
+
+  return {
+    minLatitude2: southPoint.lat2,
+    maxLatitude2: northPoint.lat2,
+    minLongitude2: westPoint.lon2,
+    maxLongitude2: eastPoint.lon2
   };
 }

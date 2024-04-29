@@ -10,10 +10,16 @@ import { ThrottlerModule } from '@nestjs/throttler';
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
       cache: true,
       isGlobal: true,
       validationSchema: Joi.object({
-        DATABASE_URL: Joi.required(),
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .required(),
+        DATABASE_URL: Joi.string().required(),
+        REDIS_URL: Joi.string().required(),
+        REDIS_RESTAURANT_KEY: Joi.string().required(),
       }),
       load: [appConfig],
     }),

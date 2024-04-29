@@ -1,4 +1,6 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
+
 import {
   ConflictException,
   HttpException,
@@ -11,41 +13,42 @@ import {
   RestaurantFilterDto,
 } from '../dtos/restaurantsDtos';
 import { v4 as uuidv4 } from 'uuid';
-import { calculateMinMaxCoordinates } from '../../common/helpers/distanceHelpers';
-// import { response } from 'express';
+import Redis from 'ioredis';
 
 @Injectable()
 export class RestaurantsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async getAllRestaurants(filter: RestaurantFilterDto) {
-    const { minLatitude, maxLatitude, minLongitude, maxLongitude } =
-      calculateMinMaxCoordinates(
-        {
-          centreLat: Number(filter.latitude),
-          centreLon: Number(filter.longitude),
-        },
-        Number(filter.distance),
+    const redis = new Redis();
+    try {
+      const restaurantRedis = await redis.georadius(
+        'restaurants',
+        filter.longitude,
+        filter.latitude,
+        filter.distance,
+        'm',
       );
-    if (
-      isNaN(minLongitude) ||
-      isNaN(maxLongitude) ||
-      isNaN(minLatitude) ||
-      isNaN(minLatitude)
-    ) {
-      throw new HttpException('Restaurants not found', HttpStatus.NOT_FOUND);
+      console.log('redis', restaurantRedis);
+      if (restaurantRedis.length === 0) {
+        throw new HttpException('No restaurants found', HttpStatus.NOT_FOUND);
+      }
+      const dbRestaurants = await this.prisma.restaurants.findMany({
+        where: {
+          AND: [
+            { id: { in: restaurantRedis as string[] } },
+            { city: { equals: filter.city } },
+          ],
+        },
+      });
+      console.log('db', dbRestaurants);
+      return dbRestaurants;
+    } finally {
+      redis.quit();
     }
-    return await this.prisma.restaurants.findMany({
-      where: {
-        AND: [
-          { latitude: { gte: minLatitude } },
-          { latitude: { lte: maxLatitude } },
-          { longitude: { gte: minLongitude } },
-          { longitude: { lte: maxLongitude } },
-          { city: { equals: filter.city } },
-        ],
-      },
-    });
   }
 
   async getOneRestaurant(id) {
@@ -55,12 +58,20 @@ export class RestaurantsRepository {
   async create(body: RestaurantsDtos) {
     try {
       const id = uuidv4();
-      return await this.prisma.restaurants.create({
+      const restaurant = await this.prisma.restaurants.create({
         data: {
           ...body,
           id,
         },
       });
+      const redis = new Redis();
+      redis.geoadd(
+        'restaurants',
+        restaurant.longitude,
+        restaurant.latitude,
+        restaurant.id,
+      );
+      return restaurant;
     } catch (e) {
       if (e.code === 'P2002') {
         throw new ConflictException({

@@ -5,6 +5,7 @@ import { RestaurantsDtos } from '../src/modules/restaurants/dtos/restaurantsDtos
 import { v4 as uuidv4 } from 'uuid';
 import { RestaurantsRepository } from '../src/modules/restaurants/repositories/restaurantRepository';
 import { PrismaService } from '../src/modules/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('RestaurantController', () => {
   let controller: RestaurantsController;
@@ -13,7 +14,12 @@ describe('RestaurantController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RestaurantsController],
-      providers: [RestaurantsService, RestaurantsRepository, PrismaService],
+      providers: [
+        RestaurantsService,
+        RestaurantsRepository,
+        PrismaService,
+        ConfigService,
+      ],
     }).compile();
     controller = module.get<RestaurantsController>(RestaurantsController);
     service = module.get<RestaurantsService>(RestaurantsService);
